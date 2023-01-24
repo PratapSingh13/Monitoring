@@ -1,0 +1,59 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  config.yml: |-
+    global:
+    templates:
+    - '/etc/alertmanager-templates/*.tmpl'
+    route:
+      receiver: alert-emailer
+      group_by: ['alertname', 'cluster', 'service'] 
+      group_wait: 10s 
+      group_interval: 1m 
+      repeat_interval: 5m
+      routes:
+        - receiver: alert-emailer
+          match:
+            email: true
+          group_wait: 10s
+          repeat_interval: 5m
+          continue: true 
+        - receiver: slack
+          match:
+            slack: true
+          group_wait: 10s
+          repeat_interval: 5m
+          continue: true 
+    receivers:
+    - name: alert-emailer
+      email_configs:
+      - to: 'yogendrapratapsingh70@gmail.com'
+        from: 'yogendrapratapsingh70@gmail.com'
+        smarthost: smtp.gmail.com:587
+        auth_username: 'yogendrapratapsingh70@gmail.com'
+        auth_identity: 'yogendrapratapsingh70@gmail.com'
+        auth_password: 'enterapppassword'
+        require_tls: yes
+        send_resolved: true
+        headers:
+          subject: "{{ .Status | toUpper }} {{ .CommonLabels.env }}:{{ .CommonLabels.cluster }} {{ .CommonLabels.alertname }}"
+        html: '{{ template "emaildefaulthtml" . }}'
+        text: '{{ template "emaildefaulttext" . }}'        
+    - name: 'slack' 
+      slack_configs: 
+      - api_url: https://hooks.slack.com/services/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
+        channel: 'alert-manager' 
+        send_resolved: true 
+        icon_url: https://avatars3.githubusercontent.com/u/3380462 
+        color: '{{ template "slack.monzo.color" . }}'            
+        title: '{{ template "slack.monzo.title" . }}'
+        text: >-
+          {{ range .Alerts -}}
+          *Description:* {{ .Annotations.description }}
+          *Details:*
+            {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+            {{ end }}
+          {{ end }}
